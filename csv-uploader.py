@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+
 import argparse
 import csv
 import json
@@ -70,11 +71,11 @@ class CsvExtractor:
                     yield row
 
 class FieldError(Exception):
-    '''
+    """
     Invalid Field definitions
-    '''
+    """
 
-def validateFields(fields):
+def validate_fields(fields):
     errors = []
     for i, field in enumerate(fields):
         if 'field' not in field:
@@ -119,7 +120,7 @@ def process_file(args):
     if args.fields:
         with open(os.path.expanduser(args.fields)) as fields_file:
             fields = json.load(fields_file)
-            validateFields(fields)
+            validate_fields(fields)
     else:
         fields = None
     csv_reader = CsvExtractor(filename, args.primaryKey, fields)
@@ -168,26 +169,40 @@ def process_file(args):
         print('Dataset ID: {}'.format(res['datasetId']))
     
     elif fields:
-        ## we have a datasetId and field defs.  Update the dataset to use the field defs provided
+        # we have a datasetId and field defs.  Update the dataset to use the field defs provided
         data = {
-            'datasetId':args.datasetId,
-            'fields':fields
+            'datasetId': args.datasetId,
+            'fields': fields
         }
         res = post_to_api(args.server + '/dataset/updatefields', data, args.apiKey)
         print('Dataset Fields Updated: {success}'.format(**res))
     if args.clear:
+        print('Clearing all Rows in dataset %s' % args.datasetId)
         post_to_api(args.server + '/dataset/deleteallrows', {'datasetId': args.datasetId}, args.apiKey)
     print('Updating Rows in dataset %s' % args.datasetId)
     rows = []
     for record in csv_reader.extract_records():
+        for field_name, value in record.items():
+            try:
+                value_array = ast.literal_eval(value)
+                if isinstance(value_array, list):
+                    if len(value_array) > 1:
+                        record[field_name] = value_array
+                    elif value_array:
+                        record[field_name] = value_array[0]
+                    else:
+                        record[field_name] = None
+            except (SyntaxError, ValueError):
+                pass
         rows.append(record)
         
-        if len(rows) == 3000:
+        if len(rows) >= args.batchSize:
             process_batch(args, rows)
             rows = []
+            rows.clear()
             batches += 1
 
-    if len(rows):
+    if rows:
         process_batch(args, rows)
 
     print("Uploaded file in {} batches".format(batches))
@@ -214,11 +229,15 @@ def main():
     dataset_parser.add_argument('-p', '--primaryKey',
                                 help='The primary key field ({} for auto-generated UUIDs)'.format(AUTO_PRIMARY_KEY),
                                 required=True)
+    dataset_parser.add_argument('-b', '--batchSize', help='Number of rows to send in each batch', default=3000, type=int)                            
     dataset_parser.add_argument('-x', '--noIndex', action='store_true',
                                 help="Don't perform incremental indexing (index after upload completes)")
     dataset_parser.add_argument('-c', '--clear', action='store_true',
                                 help="Clear all rows from dataset before uploading")                            
-    dataset_parser.add_argument('-j', '--fields', action='store', help='The path the a json file with field definitions. Field definitions must match those acceptable to the Numetric API: https://numetric-api.readme.io/docs/field-definition')
+    dataset_parser.add_argument('-j', '--fields', action='store',
+                                help='The path the a json file with field definitions. '
+                                     'Field definitions must match those acceptable to the Numetric API: '
+                                     'https://numetric-api.readme.io/docs/field-definition')
     # And the optional arguments
     parser.add_argument('-l', '--log', action='store_true', help='Enable logging on the server')
 
