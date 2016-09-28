@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 
-
 import argparse
+import ast
 import csv
 import json
 import os
 import os.path
-import requests
 import sys
 import uuid
-import time
+
+import requests
 
 ALLOWED_TYPES = ("string", "integer", "double", "currency", "date", "time", "datetime", "boolean", "geo_shape", "geo_point")
 
