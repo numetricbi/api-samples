@@ -11,6 +11,9 @@ import uuid
 
 import requests
 
+# Allow individual fields be up to 1 MB
+csv.field_size_limit(1 << 20)
+
 ALLOWED_TYPES = ("string", "integer", "double", "currency", "date", "time", "datetime", "boolean", "geo_shape", "geo_point")
 
 AUTO_PRIMARY_KEY = '_AUTO_'
