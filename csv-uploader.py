@@ -43,7 +43,7 @@ class CsvExtractor:
                 exception = None
                 # And stop trying
                 break
-            except Exception as e:
+            except UnicodeDecodeError as e:
                 print('WARN: Encoding', encoding, 'failed', file=sys.stderr)
                 exception = e
         # Bail if none of the encodings worked
