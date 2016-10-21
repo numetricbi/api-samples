@@ -42,6 +42,11 @@ class CsvExtractor:
                     print('Using', encoding, 'encoding')
                 # Save the field names with . replaced by _ to make elasticsearch happy
                 self.fieldnames = [x.strip().replace('.', '_') for x in csv_reader.fieldnames]
+                # Move _ to the end of the field name to make API happy
+                for i, field_name in enumerate(self.fieldnames):
+                    if field_name.startswith('_'):
+                        print("Moving _ to the end for {}".format(field_name), file=sys.stderr)
+                        self.fieldnames[i] = field_name[1:] + "_"
                 # Mark that everything worked
                 exception = None
                 # And stop trying
@@ -73,10 +78,12 @@ class CsvExtractor:
                 for row in csv_reader:      
                     yield row
 
+
 class FieldError(Exception):
     """
     Invalid Field definitions
     """
+
 
 def validate_fields(fields):
     errors = []
@@ -170,7 +177,7 @@ def process_file(args):
         res = post_to_api(args.server + '/dataset/create', data, args.apiKey)
         args.datasetId = res['datasetId']
         print('Dataset ID: {}'.format(res['datasetId']))
-    
+
     elif fields:
         # we have a datasetId and field defs.  Update the dataset to use the field defs provided
         data = {
@@ -179,9 +186,11 @@ def process_file(args):
         }
         res = post_to_api(args.server + '/dataset/updatefields', data, args.apiKey)
         print('Dataset Fields Updated: {success}'.format(**res))
+
     if args.clear:
         print('Clearing all Rows in dataset %s' % args.datasetId)
         post_to_api(args.server + '/dataset/deleteallrows', {'datasetId': args.datasetId}, args.apiKey)
+
     print('Updating Rows in dataset %s' % args.datasetId)
     rows = []
     for record in csv_reader.extract_records():
@@ -201,7 +210,6 @@ def process_file(args):
         
         if len(rows) >= args.batchSize:
             process_batch(args, rows)
-            rows = []
             rows.clear()
             batches += 1
 
@@ -232,7 +240,7 @@ def main():
     dataset_parser.add_argument('-p', '--primaryKey',
                                 help='The primary key field ({} for auto-generated UUIDs)'.format(AUTO_PRIMARY_KEY),
                                 required=True)
-    dataset_parser.add_argument('-b', '--batchSize', help='Number of rows to send in each batch', default=3000, type=int)                            
+    dataset_parser.add_argument('-b', '--batchSize', help='Number of rows to send in each batch', default=3000, type=int)
     dataset_parser.add_argument('-x', '--noIndex', action='store_true',
                                 help="Don't perform incremental indexing (index after upload completes)")
     dataset_parser.add_argument('-c', '--clear', action='store_true',
