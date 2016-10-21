@@ -26,7 +26,7 @@ class CsvExtractor:
         else:
             self.fields = None
         # Try the file with each of these encoding to see what works
-        for encoding in ['utf-8', 'iso-8859-1', 'ascii']:
+        for encoding in ['utf-8-sig', 'utf-8', 'iso-8859-1', 'ascii']:
             try:
                 with open(self.filename, encoding=encoding) as csv_file:
                     # Read in the whole file to ensure we got the right encoding
