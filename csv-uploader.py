@@ -105,14 +105,9 @@ def post_to_api(url, data, auth_id):
         'Authorization': auth_id,
     }
     r = requests.post(url, headers=headers, json=data)
-    if r.status_code != requests.codes.ok:
-        if response == "<Response [400]>" or response == "<Response [200]>" or response == "<Response [300]>" or response == "<Response [500]>": # response != "<Response [503]>" was not working.
-            print(r.text, file=sys.stderr)
-            r.raise_for_status()
-        else: #Assume response 503, server busy:
-            print("Error 503: server busy.  Waiting 5 seconds to retry.")
-            time.sleep(5)
-            post_to_api(url, data, auth_id) 
+    if r.status_code not in [requests.codes.ok, requests.codes.created]:
+        print(r.status_code, r.text, file=sys.stderr)
+        r.raise_for_status()
     return r.json()
 
 
@@ -136,13 +131,13 @@ def process_file(args):
     csv_reader = CsvExtractor(filename, args.primaryKey, fields)
     batches = 1
     if not args.datasetId:
-        if not args.folderId:
-            raise ValueError('Must specify folder ID when creating a new dataset')
+        if not args.category:
+            raise ValueError('Must specify category when creating a new dataset')
 
         print('Creating a new dataset')
         data = {
             "name": args.name if args.name else os.path.splitext(os.path.basename(filename))[0],
-            "folderId": args.folderId,
+            "categories": args.category,
             "primaryKey": args.primaryKey,
             "description": "Uploaded using CSV uploader example script",
         }
@@ -174,9 +169,9 @@ def process_file(args):
 
         data['fields'] = fields
 
-        res = post_to_api(args.server + '/dataset/create', data, args.apiKey)
-        args.datasetId = res['datasetId']
-        print('Dataset ID: {}'.format(res['datasetId']))
+        res = post_to_api(args.server + '/v2/dataset', data, args.apiKey)
+        args.datasetId = res['id']
+        print('Dataset ID: {}'.format(res['id']))
 
     elif fields:
         # we have a datasetId and field defs.  Update the dataset to use the field defs provided
@@ -235,7 +230,7 @@ def main():
     # The arguments for the dataset to create
     dataset_parser = parser.add_argument_group('dataset arguments')
     dataset_parser.add_argument('-d', '--datasetId')
-    dataset_parser.add_argument('-f', '--folderId')
+    dataset_parser.add_argument('-c', '--category', action='append')
     dataset_parser.add_argument('-n', '--name')
     dataset_parser.add_argument('-p', '--primaryKey',
                                 help='The primary key field ({} for auto-generated UUIDs)'.format(AUTO_PRIMARY_KEY),
@@ -243,7 +238,7 @@ def main():
     dataset_parser.add_argument('-b', '--batchSize', help='Number of rows to send in each batch', default=3000, type=int)
     dataset_parser.add_argument('-x', '--noIndex', action='store_true',
                                 help="Don't perform incremental indexing (index after upload completes)")
-    dataset_parser.add_argument('-c', '--clear', action='store_true',
+    dataset_parser.add_argument('--clear', action='store_true',
                                 help="Clear all rows from dataset before uploading")                            
     dataset_parser.add_argument('-j', '--fields', action='store',
                                 help='The path the a json file with field definitions. '
