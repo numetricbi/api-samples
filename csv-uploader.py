@@ -6,6 +6,7 @@ import csv
 import json
 import os
 import os.path
+import random
 import sys
 import uuid
 
@@ -17,6 +18,17 @@ csv.field_size_limit(1 << 20)
 ALLOWED_TYPES = ("string", "integer", "double", "currency", "date", "time", "datetime", "boolean", "geo_shape", "geo_point")
 
 AUTO_PRIMARY_KEY = '_AUTO_'
+
+
+_node = random.randrange(0, 1 << 48)
+_clock_seq = random.randrange(0, 1 << 14)
+
+
+def _make_id():
+    global _clock_seq
+    _clock_seq += 1
+    # NOTE: Convert it to a string so RethinkDB won't choke on it
+    return str(uuid.uuid1(_node, _clock_seq))
 
 
 class CsvExtractor:
@@ -72,7 +84,7 @@ class CsvExtractor:
 
             if self.primary_key == AUTO_PRIMARY_KEY:
                 for row in csv_reader:
-                    row['id'] = str(uuid.uuid4())
+                    row['id'] = _make_id()
                     yield row
             else:
                 for row in csv_reader:      
