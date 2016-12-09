@@ -99,12 +99,11 @@ def validate_fields(fields):
         msg = '\n'.join(errors)
         raise FieldError(msg)
 
-
-def post_to_api(url, data, auth_id):
+def request_api(method, url, auth_id, data):
     headers = {
         'Authorization': auth_id,
     }
-    r = requests.post(url, headers=headers, json=data)
+    r = requests.request(method, url, headers=headers, json=data)
     if r.status_code not in [requests.codes.ok, requests.codes.created]:
         print(r.status_code, r.text, file=sys.stderr)
         r.raise_for_status()
@@ -113,11 +112,10 @@ def post_to_api(url, data, auth_id):
 
 def process_batch(args, rows):
     batch = {
-        'datasetId': args.datasetId,
         'rows': rows,
         'index': not args.noIndex,
     }
-    post_to_api(args.server + '/dataset/updaterows', batch, args.apiKey)
+    request_api('POST', args.server + '/v2/dataset/{}/rows'.format(args.datasetId), args.apiKey, batch)
 
 
 def process_file(args):
@@ -169,22 +167,21 @@ def process_file(args):
 
         data['fields'] = fields
 
-        res = post_to_api(args.server + '/v2/dataset', data, args.apiKey)
+        res = request_api('POST', args.server + '/v2/dataset', args.apiKey, data)
         args.datasetId = res['id']
         print('Dataset ID: {}'.format(res['id']))
 
     elif fields:
         # we have a datasetId and field defs.  Update the dataset to use the field defs provided
         data = {
-            'datasetId': args.datasetId,
             'fields': fields
         }
-        res = post_to_api(args.server + '/dataset/updatefields', data, args.apiKey)
+        res = request_api('PATCH', args.server + '/v2/dataset/{}/'.format(args.datasetId), args.apiKey, data)
         print('Dataset Fields Updated: {success}'.format(**res))
 
     if args.clear:
         print('Clearing all Rows in dataset %s' % args.datasetId)
-        post_to_api(args.server + '/dataset/deleteallrows', {'datasetId': args.datasetId}, args.apiKey)
+        request_api('DELETE', args.server + '/v2/dataset/{}/rows'.format(args.datasetId), args.apiKey, {'datasetId': args.datasetId})
 
     print('Updating Rows in dataset %s' % args.datasetId)
     rows = []
@@ -215,7 +212,7 @@ def process_file(args):
 
     if args.noIndex:
         print('Sending index request')
-        post_to_api(args.server + '/dataset/index', {'datasetId': args.datasetId}, args.apiKey)
+        request_api('GET', args.server + '/v2/dataset/{}/index'.format(args.datasetId), args.apiKey)
 
 
 def main():
