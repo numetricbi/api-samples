@@ -99,6 +99,7 @@ def validate_fields(fields):
         msg = '\n'.join(errors)
         raise FieldError(msg)
 
+
 def request_api(method, url, auth_id, data):
     headers = {
         'Authorization': auth_id,
@@ -212,7 +213,7 @@ def process_file(args):
 
     if args.noIndex:
         print('Sending index request')
-        request_api('GET', args.server + '/v2/dataset/{}/index'.format(args.datasetId), args.apiKey)
+        request_api('GET', args.server + '/v2/dataset/{}/index'.format(args.datasetId), args.apiKey, None)
 
 
 def main():
