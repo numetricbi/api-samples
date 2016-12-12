@@ -55,10 +55,10 @@ class CsvExtractor:
                 # Save the field names with . replaced by _ to make elasticsearch happy
                 self.fieldnames = [x.strip().replace('.', '_') for x in csv_reader.fieldnames]
                 # Move _ to the end of the field name to make API happy
-                for i, field_name in enumerate(self.fieldnames):
-                    if field_name.startswith('_'):
-                        print("Moving _ to the end for {}".format(field_name), file=sys.stderr)
-                        self.fieldnames[i] = field_name[1:] + "_"
+                for i in range(len(self.fieldnames)):
+                    while self.fieldnames[i].startswith('_'):
+                        print("Moving _ to the end for {}".format(self.fieldnames[i]), file=sys.stderr)
+                        self.fieldnames[i] = self.fieldnames[i][1:] + "_"
                 # Mark that everything worked
                 exception = None
                 # And stop trying
