@@ -126,7 +126,7 @@ def request_api(method, url, auth_id, data):
 def process_batch(args, rows):
     batch = {
         'rows': rows,
-        'index': not args.noIndex,
+        'index': args.index,
     }
     request_api('POST', args.server + '/v2/dataset/{}/rows'.format(args.datasetId), args.apiKey, batch)
 
@@ -142,16 +142,16 @@ def process_file(args):
     csv_reader = CsvExtractor(filename, args.primaryKey, fields)
     batches = 1
     if not args.datasetId:
-        if not args.category:
-            raise ValueError('Must specify category when creating a new dataset')
-
         print('Creating a new dataset')
         data = {
             "name": args.name if args.name else os.path.splitext(os.path.basename(filename))[0],
-            "categories": args.category,
             "primaryKey": args.primaryKey,
             "description": "Uploaded using CSV uploader example script",
+            "everyone": args.everyone,
         }
+        # Add the optional part of the header
+        if args.category:
+            data["categories"] = args.category
 
         if not fields:
             fields = []
@@ -223,7 +223,7 @@ def process_file(args):
 
     print("Uploaded file in {} batches".format(batches))
 
-    if args.noIndex:
+    if not args.index:
         print('Sending index request')
         request_api('GET', args.server + '/v2/dataset/{}/index'.format(args.datasetId), args.apiKey, None)
 
@@ -240,20 +240,21 @@ def main():
     # The arguments for the dataset to create
     dataset_parser = parser.add_argument_group('dataset arguments')
     dataset_parser.add_argument('-d', '--datasetId')
-    dataset_parser.add_argument('-c', '--category', action='append')
+    dataset_parser.add_argument('-c', '--category', help="Category of the created dataset", action='append')
     dataset_parser.add_argument('-n', '--name')
     dataset_parser.add_argument('-p', '--primaryKey',
                                 help='The primary key field ({} for auto-generated UUIDs)'.format(AUTO_PRIMARY_KEY),
                                 required=True)
     dataset_parser.add_argument('-b', '--batchSize', help='Number of rows to send in each batch', default=3000, type=int)
-    dataset_parser.add_argument('-x', '--noIndex', action='store_true',
-                                help="Don't perform incremental indexing (index after upload completes)")
+    dataset_parser.add_argument('-x', '--index', action='store_true',
+                                help="Perform incremental indexing instead of indexing after upload completes")
     dataset_parser.add_argument('--clear', action='store_true',
                                 help="Clear all rows from dataset before uploading")                            
     dataset_parser.add_argument('-j', '--fields', action='store',
                                 help='The path the a json file with field definitions. '
                                      'Field definitions must match those acceptable to the Numetric API: '
                                      'https://numetric-api.readme.io/docs/field-definition')
+    dataset_parser.add_argument("-y", "--everyone", help="Don't share the dataset with everyone", action="store_false", default=True)
     # And the optional arguments
     parser.add_argument('-l', '--log', action='store_true', help='Enable logging on the server')
 
